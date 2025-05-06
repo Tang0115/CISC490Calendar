@@ -51,9 +51,18 @@ function App() {
           </div>
           <h1>Calendar</h1>
           <div className="header-right">
-            <button onClick={handleThemeToggle} className="theme-toggle-btn">
-              {theme === 'light' ? '☀️' : '🌙'}
-            </button>
+            <div className="theme-switch-wrapper">
+              <span className="theme-mode-label">Light</span>
+              <label className="theme-switch">
+                <input
+                  type="checkbox"
+                  checked={theme === 'dark'}
+                  onChange={handleThemeToggle}
+                />
+                <span className="slider"></span>
+              </label>
+              <span className="theme-mode-label">Dark</span>
+            </div>
           </div>
           {menuOpen && (
             <div className="menu">

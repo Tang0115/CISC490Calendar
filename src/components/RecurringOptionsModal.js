@@ -1,14 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: initialRecurringOptions }) {
-  const [recurringOptions, setRecurringOptions] = useState(initialRecurringOptions);
+  const [recurringOptions, setRecurringOptions] = useState({
+    frequency: 'daily',
+    weekDays: [],
+    endDate: '',
+    interval: 1,
+    ...initialRecurringOptions
+  });
+
   const modalRef = useRef(null);
   const firstFocusableElementRef = useRef(null);
   const lastFocusableElementRef = useRef(null);
 
+  // Reset options when modal opens with new initial options
   useEffect(() => {
-    setRecurringOptions(initialRecurringOptions);
-  }, [initialRecurringOptions]);
+    if (isOpen) {
+      setRecurringOptions({
+        frequency: 'daily',
+        weekDays: [],
+        endDate: '',
+        interval: 1,
+        ...initialRecurringOptions
+      });
+    }
+  }, [isOpen, initialRecurringOptions]);
 
   useEffect(() => {
     if (isOpen) {
@@ -40,12 +56,30 @@ function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: init
   }, [isOpen, onClose]);
 
   const handleSave = () => {
-    onSave(recurringOptions);
-    onClose();
+    // Validate required fields
+    if (!recurringOptions.endDate) {
+      alert('Please select an end date');
+      return;
+    }
+
+    if (recurringOptions.frequency === 'weekly' && recurringOptions.weekDays.length === 0) {
+      alert('Please select at least one day of the week');
+      return;
+    }
+
+    // Ensure the interval is a valid number
+    const interval = Math.max(1, parseInt(recurringOptions.interval) || 1);
+    
+    // Save with validated options
+    onSave({
+      ...recurringOptions,
+      interval,
+      weekDays: [...recurringOptions.weekDays].sort((a, b) => a - b) // Sort weekdays
+    });
   };
 
   const getPreviewMessage = () => {
-    if (!recurringOptions.endDate) return '';
+    if (!recurringOptions.endDate) return 'Please select an end date to see the preview';
     
     const frequency = recurringOptions.frequency;
     const interval = recurringOptions.interval > 1 ? `every ${recurringOptions.interval} ${frequency}s` : `every ${frequency}`;
@@ -69,21 +103,20 @@ function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: init
 
   return (
     <div 
-      className="modal-overlay"
+      className="recurring-modal-overlay"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="modal-title"
+      aria-labelledby="recurring-modal-title"
       ref={modalRef}
     >
-      <div className="modal-content">
-        <h2 id="modal-title">Recurring Options</h2>
+      <div className="recurring-modal-content">
+        <h2 id="recurring-modal-title">Recurring Event Options</h2>
         <div className="input-row">
           <label htmlFor="frequency-select">Frequency:</label>
           <select
             id="frequency-select"
             value={recurringOptions.frequency}
             onChange={(e) => setRecurringOptions({ ...recurringOptions, frequency: e.target.value })}
-            aria-label="Select frequency of recurrence"
             ref={firstFocusableElementRef}
           >
             <option value="daily">Daily</option>
@@ -92,31 +125,30 @@ function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: init
             <option value="yearly">Yearly</option>
           </select>
         </div>
+
         {recurringOptions.frequency === 'weekly' && (
-          <div 
-            className="weekday-checkboxes"
-            role="group"
-            aria-labelledby="weekday-label"
-          >
-            <span id="weekday-label" className="visually-hidden">Select days of the week</span>
-            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
-              <label key={day}>
-                <input
-                  type="checkbox"
-                  checked={recurringOptions.weekDays.includes(index)}
-                  onChange={(e) => {
-                    const newWeekDays = e.target.checked
-                      ? [...recurringOptions.weekDays, index]
-                      : recurringOptions.weekDays.filter(d => d !== index);
-                    setRecurringOptions({ ...recurringOptions, weekDays: newWeekDays });
-                  }}
-                  aria-label={`${day} checkbox`}
-                />
-                {day}
-              </label>
-            ))}
+          <div className="input-row">
+            <label>Days of Week:</label>
+            <div className="weekday-selector">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                <label key={day} className="weekday-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={recurringOptions.weekDays.includes(index)}
+                    onChange={(e) => {
+                      const newWeekDays = e.target.checked
+                        ? [...recurringOptions.weekDays, index]
+                        : recurringOptions.weekDays.filter(d => d !== index);
+                      setRecurringOptions({ ...recurringOptions, weekDays: newWeekDays });
+                    }}
+                  />
+                  {day}
+                </label>
+              ))}
+            </div>
           </div>
         )}
+
         <div className="input-row">
           <label htmlFor="interval-input">Interval:</label>
           <input
@@ -124,13 +156,19 @@ function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: init
             type="number"
             min="1"
             value={recurringOptions.interval}
-            onChange={(e) => setRecurringOptions({ ...recurringOptions, interval: parseInt(e.target.value) })}
-            aria-label="Enter interval number"
+            onChange={(e) => setRecurringOptions({ 
+              ...recurringOptions, 
+              interval: Math.max(1, parseInt(e.target.value) || 1)
+            })}
           />
-          <span className="interval-text">
-            {recurringOptions.interval > 1 ? `${recurringOptions.frequency}s` : recurringOptions.frequency}
+          <span className="interval-label">
+            {recurringOptions.frequency === 'daily' && 'days'}
+            {recurringOptions.frequency === 'weekly' && 'weeks'}
+            {recurringOptions.frequency === 'monthly' && 'months'}
+            {recurringOptions.frequency === 'yearly' && 'years'}
           </span>
         </div>
+
         <div className="input-row">
           <label htmlFor="end-date-input">End Date:</label>
           <input
@@ -138,9 +176,10 @@ function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: init
             type="date"
             value={recurringOptions.endDate}
             onChange={(e) => setRecurringOptions({ ...recurringOptions, endDate: e.target.value })}
-            aria-label="Select end date"
+            min={new Date().toISOString().split('T')[0]}
           />
         </div>
+
         <div 
           className="preview-message"
           role="status"
@@ -148,16 +187,17 @@ function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: init
         >
           {getPreviewMessage()}
         </div>
+
         <div className="modal-buttons">
           <button 
+            className="save-btn" 
             onClick={handleSave}
-            aria-label="Save recurring options"
           >
             Save
           </button>
           <button 
+            className="cancel-btn" 
             onClick={onClose}
-            aria-label="Cancel and close modal"
             ref={lastFocusableElementRef}
           >
             Cancel

@@ -15,24 +15,52 @@ const generateRecurringDates = (startDate, recurringOptions) => {
   const end = new Date(recurringOptions.endDate);
   let currentDate = new Date(start);
 
+  // Validate dates
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    console.error('Invalid start or end date');
+    return dates;
+  }
+
+  // Ensure interval is valid
+  const interval = Math.max(1, parseInt(recurringOptions.interval) || 1);
+
   while (currentDate <= end) {
     if (recurringOptions.frequency === 'daily') {
       dates.push(new Date(currentDate));
-      currentDate.setDate(currentDate.getDate() + recurringOptions.interval);
+      currentDate.setDate(currentDate.getDate() + interval);
     } else if (recurringOptions.frequency === 'weekly') {
-      if (recurringOptions.weekDays.includes(currentDate.getDay())) {
+      // Ensure weekDays is an array of valid day numbers (0-6)
+      const validWeekDays = recurringOptions.weekDays
+        .map(day => parseInt(day))
+        .filter(day => !isNaN(day) && day >= 0 && day <= 6);
+
+      if (validWeekDays.includes(currentDate.getDay())) {
         dates.push(new Date(currentDate));
       }
       currentDate.setDate(currentDate.getDate() + 1);
-      if (currentDate.getDay() === 0) {
-        currentDate.setDate(currentDate.getDate() + (recurringOptions.interval - 1) * 7);
+      
+      // If we've completed a week and have an interval > 1, skip ahead
+      if (currentDate.getDay() === 0 && interval > 1) {
+        currentDate.setDate(currentDate.getDate() + (interval - 1) * 7);
       }
     } else if (recurringOptions.frequency === 'monthly') {
       dates.push(new Date(currentDate));
-      currentDate.setMonth(currentDate.getMonth() + recurringOptions.interval);
+      const oldMonth = currentDate.getMonth();
+      currentDate.setMonth(currentDate.getMonth() + interval);
+      
+      // Handle month skipping (e.g., Jan 31 to Feb 31 should go to Feb 28)
+      if (currentDate.getMonth() > (oldMonth + interval) % 12) {
+        currentDate.setDate(0); // Set to last day of previous month
+      }
     } else if (recurringOptions.frequency === 'yearly') {
       dates.push(new Date(currentDate));
-      currentDate.setFullYear(currentDate.getFullYear() + recurringOptions.interval);
+      currentDate.setFullYear(currentDate.getFullYear() + interval);
+    }
+
+    // Safety check to prevent infinite loops
+    if (dates.length > 1000) {
+      console.warn('Too many recurring dates generated, truncating to 1000');
+      break;
     }
   }
 
@@ -49,7 +77,6 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     priority: 'Medium',
     recurring: false,
   });
-  const [showDelete, setShowDelete] = useState(null);
   const [recurringModalOpen, setRecurringModalOpen] = useState(false);
   const [recurringOptions, setRecurringOptions] = useState({
     frequency: 'daily',
@@ -66,9 +93,12 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
   const [lastAction, setLastAction] = useState(null);
   const [showUndo, setShowUndo] = useState(false);
   const [errors, setErrors] = useState({});
-  const [showRecurringModal, setShowRecurringModal] = useState(false);
   const [deletedTasks, setDeletedTasks] = useState([]);
   const [showUndoNotification, setShowUndoNotification] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
 
   const categories = useMemo(() => ['Work', 'Personal', 'School'], []);
   const priorities = ['Low', 'Medium', 'High', 'Critical'];
@@ -85,12 +115,30 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
 
   const handleRecurringChange = (checked) => {
     if (selectedTask) {
-      setSelectedTask({ ...selectedTask, recurring: checked });
+      setSelectedTask({ 
+        ...selectedTask, 
+        recurring: checked,
+        recurringOptions: checked ? {
+          frequency: 'daily',
+          weekDays: [],
+          endDate: '',
+          interval: 1
+        } : null
+      });
       if (checked) {
         setRecurringModalOpen(true);
       }
     } else {
-      setNewTask({ ...newTask, recurring: checked });
+      setNewTask({ 
+        ...newTask, 
+        recurring: checked,
+        recurringOptions: checked ? {
+          frequency: 'daily',
+          weekDays: [],
+          endDate: '',
+          interval: 1
+        } : null
+      });
       if (checked) {
         setRecurringModalOpen(true);
       }
@@ -99,104 +147,237 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
 
   const handleRecurringOptionsSave = (options) => {
     if (selectedTask) {
-      setSelectedTask({ ...selectedTask, recurringOptions: options });
+      setSelectedTask({ 
+        ...selectedTask, 
+        recurringOptions: options,
+        recurring: true
+      });
     } else {
-      setNewTask({ ...newTask, recurringOptions: options });
+      setNewTask({ 
+        ...newTask, 
+        recurringOptions: options,
+        recurring: true
+      });
     }
+    setRecurringModalOpen(false);
   };
 
   const validateTimeInputs = (startTime, endTime) => {
     const errors = {};
+    
+    // Check if times are provided
     if (!startTime) {
       errors.startTime = 'Start time is required';
     }
     if (!endTime) {
       errors.endTime = 'End time is required';
     }
-    if (startTime && endTime) {
-      const start = new Date(`2000-01-01T${startTime}`);
-      const end = new Date(`2000-01-01T${endTime}`);
-      if (end <= start) {
+
+    // Validate time format
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (startTime && !timeRegex.test(startTime)) {
+      errors.startTime = 'Invalid time format';
+    }
+    if (endTime && !timeRegex.test(endTime)) {
+      errors.endTime = 'Invalid time format';
+    }
+
+    if (startTime && endTime && timeRegex.test(startTime) && timeRegex.test(endTime)) {
+      const [startHour, startMinute] = startTime.split(':').map(Number);
+      const [endHour, endMinute] = endTime.split(':').map(Number);
+      const startMinutes = startHour * 60 + startMinute;
+      const endMinutes = endHour * 60 + endMinute;
+      
+      // Handle events spanning midnight
+      if (endMinutes <= startMinutes && endMinutes !== 0) {
         errors.endTime = 'End time must be after start time';
       }
     }
     return errors;
   };
 
-  const checkForOverlappingEvents = (startTime, endTime, taskId = null) => {
-    const newStart = new Date(`2000-01-01T${startTime}`);
-    const newEnd = new Date(`2000-01-01T${endTime}`);
+  const checkForOverlappingEvents = (startTime, endTime, taskId = null, date = null) => {
+    if (!startTime || !endTime) return false;
+
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    const newStartMinutes = startHour * 60 + startMinute;
+    const newEndMinutes = endHour * 60 + endMinute;
+    const targetDate = date || getLocalDateString(selectedDate);
     
     return events.some(task => {
+      // Skip self when editing
       if (taskId && task.taskId === taskId) return false;
-      const taskStart = new Date(`2000-01-01T${task.startTime}`);
-      const taskEnd = new Date(`2000-01-01T${task.endTime}`);
-      return (newStart < taskEnd && newEnd > taskStart);
+      
+      // Only check events on the same day
+      if (task.date !== targetDate) return false;
+
+      const [taskStartHour, taskStartMinute] = task.startTime.split(':').map(Number);
+      const [taskEndHour, taskEndMinute] = task.endTime.split(':').map(Number);
+      const taskStartMinutes = taskStartHour * 60 + taskStartMinute;
+      const taskEndMinutes = taskEndHour * 60 + taskEndMinute;
+
+      // Handle events spanning midnight
+      const normalizedNewEnd = newEndMinutes < newStartMinutes ? newEndMinutes + 1440 : newEndMinutes;
+      const normalizedTaskEnd = taskEndMinutes < taskStartMinutes ? taskEndMinutes + 1440 : taskEndMinutes;
+
+      // Check if events overlap
+      const overlaps = (
+        (newStartMinutes < normalizedTaskEnd && normalizedNewEnd > taskStartMinutes) ||
+        (newStartMinutes === taskStartMinutes && normalizedNewEnd === normalizedTaskEnd)
+      );
+
+      if (overlaps) {
+        console.log('Overlap detected:', {
+          new: { start: startTime, end: endTime },
+          existing: { start: task.startTime, end: task.endTime }
+        });
+      }
+
+      return overlaps;
     });
   };
 
-  const handleAddTask = () => {
-    const timeErrors = validateTimeInputs(newTask.startTime, newTask.endTime);
-    if (Object.keys(timeErrors).length > 0) {
-      setErrors(timeErrors);
-      return;
+  const handleAddTask = async (allowOverlap = false) => {
+    try {
+      setIsLoading(true);
+      setErrorMessage('');
+      
+      // Validate required fields
+      if (!newTask.title?.trim()) {
+        setErrors({ title: 'Title is required' });
+        return;
+      }
+
+      const timeErrors = validateTimeInputs(newTask.startTime, newTask.endTime);
+      if (Object.keys(timeErrors).length > 0) {
+        setErrors(timeErrors);
+        return;
+      }
+
+      // Only check for overlaps if allowOverlap is false
+      if (!allowOverlap && checkForOverlappingEvents(newTask.startTime, newTask.endTime)) {
+        setErrors({ overlap: 'This event overlaps with an existing event' });
+        return;
+      }
+
+      // Validate recurring options if task is recurring
+      if (newTask.recurring && (!newTask.recurringOptions?.endDate || 
+          (newTask.recurringOptions.frequency === 'weekly' && 
+           (!newTask.recurringOptions.weekDays || newTask.recurringOptions.weekDays.length === 0)))) {
+        setErrors({ recurring: 'Please complete recurring event settings' });
+        return;
+      }
+
+      setErrors({});
+      const taskData = {
+        taskId: Date.now().toString(),
+        title: newTask.title.trim(),
+        description: newTask.description?.trim() || '',
+        startTime: newTask.startTime,
+        endTime: newTask.endTime,
+        category: newTask.category || 'Work',
+        priority: newTask.priority || 'Medium',
+        recurring: newTask.recurring,
+        recurringOptions: newTask.recurring ? {
+          ...newTask.recurringOptions,
+          interval: Math.max(1, parseInt(newTask.recurringOptions.interval) || 1)
+        } : null,
+        metadata: { 
+          createdBy: 'CurrentUser', 
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString() 
+        },
+        date: getLocalDateString(selectedDate),
+      };
+
+      let tasksToAdd = [taskData];
+
+      if (taskData.recurring && taskData.recurringOptions) {
+        try {
+          const recurringDates = generateRecurringDates(
+            new Date(`${taskData.date}T${taskData.startTime}`),
+            taskData.recurringOptions
+          );
+
+          if (recurringDates.length === 0) {
+            setErrors({ recurring: 'No valid recurring dates were generated' });
+            return;
+          }
+
+          tasksToAdd = recurringDates.map((date, index) => {
+            const startTime = date.toTimeString().slice(0, 5);
+            const durationMs = new Date(`1970/01/01 ${taskData.endTime}`).getTime() - 
+                             new Date(`1970/01/01 ${taskData.startTime}`).getTime();
+            const endTime = new Date(date.getTime() + durationMs).toTimeString().slice(0, 5);
+
+            return {
+              ...taskData,
+              taskId: `${taskData.taskId}-${index}`,
+              date: getLocalDateString(date),
+              startTime,
+              endTime,
+              metadata: {
+                ...taskData.metadata,
+                recurringGroupId: taskData.taskId
+              }
+            };
+          });
+        } catch (error) {
+          console.error('Error generating recurring dates:', error);
+          setErrors({ recurring: 'Error generating recurring dates' });
+          return;
+        }
+      }
+
+      // Check storage limit before saving
+      try {
+        const updatedEvents = [...events, ...tasksToAdd];
+        const eventsJson = JSON.stringify(updatedEvents);
+        if (eventsJson.length > 5242880) { // 5MB limit
+          setErrorMessage('Storage limit exceeded. Please delete some tasks.');
+          return;
+        }
+        localStorage.setItem('tasks', eventsJson);
+      } catch (e) {
+        if (e.name === 'QuotaExceededError') {
+          setErrorMessage('Storage limit exceeded. Please delete some tasks.');
+          return;
+        }
+        throw e;
+      }
+
+      setLastAction({
+        type: 'add',
+        tasks: tasksToAdd,
+        previousEvents: [...events]
+      });
+      setEvents(prevEvents => [...prevEvents, ...tasksToAdd]);
+      setShowUndo(true);
+      setTimeout(() => setShowUndo(false), 5000);
+
+      // Reset form
+      setNewTask({
+        title: '',
+        description: '',
+        startTime: '',
+        endTime: '',
+        category: 'Work',
+        priority: 'Medium',
+        recurring: false,
+      });
+      setRecurringOptions({
+        frequency: 'daily',
+        weekDays: [],
+        endDate: '',
+        interval: 1
+      });
+    } catch (error) {
+      console.error('Error adding task:', error);
+      setErrorMessage('An error occurred while adding the task. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-
-    if (checkForOverlappingEvents(newTask.startTime, newTask.endTime)) {
-      setErrors({ overlap: 'This event overlaps with an existing event' });
-      return;
-    }
-
-    setErrors({});
-    const taskData = {
-      taskId: Date.now().toString(),
-      title: newTask.title,
-      description: newTask.description,
-      startTime: newTask.startTime,
-      endTime: newTask.endTime,
-      category: newTask.category,
-      priority: newTask.priority,
-      recurring: newTask.recurring,
-      recurringOptions: newTask.recurring ? newTask.recurringOptions : null,
-      metadata: { createdBy: 'CurrentUser', lastUpdated: new Date().toISOString() },
-      date: getLocalDateString(selectedDate),
-    };
-
-    let tasksToAdd = [taskData];
-
-    if (taskData.recurring && taskData.recurringOptions) {
-      const recurringDates = generateRecurringDates(
-        new Date(`${taskData.date}T${taskData.startTime}`),
-        taskData.recurringOptions
-      );
-
-      tasksToAdd = recurringDates.map((date, index) => ({
-        ...taskData,
-        taskId: `${taskData.taskId}-${index}`,
-        date: getLocalDateString(date),
-        startTime: date.toTimeString().slice(0, 5),
-        endTime: new Date(date.getTime() + (new Date(`1970/01/01 ${taskData.endTime}`).getTime() - new Date(`1970/01/01 ${taskData.startTime}`).getTime())).toTimeString().slice(0, 5),
-      }));
-    }
-
-    setLastAction({
-      type: 'add',
-      tasks: tasksToAdd,
-      previousEvents: [...events]
-    });
-    setEvents(prevEvents => [...prevEvents, ...tasksToAdd]);
-    setShowUndo(true);
-    setTimeout(() => setShowUndo(false), 5000);
-
-    setNewTask({
-      title: '',
-      description: '',
-      startTime: '',
-      endTime: '',
-      category: 'Work',
-      priority: 'Medium',
-      recurring: false,
-    });
   };
 
   const handleUpdateTask = (taskId, updatedTask) => {
@@ -214,7 +395,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
       return;
     }
 
-    if (checkForOverlappingEvents(task.startTime, task.endTime, task.taskId)) {
+    if (checkForOverlappingEvents(task.startTime, task.endTime, task.taskId, task.date)) {
       setErrors({ overlap: 'This event overlaps with an existing event' });
       return;
     }
@@ -231,28 +412,99 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     }
   };
 
-  const handleDeleteTask = (taskId) => {
-    const task = events.find(t => t.taskId === taskId);
-    if (task.recurring) {
+  const handleDeleteTask = (task) => {
+    if (!task) return;
+    setTaskToDelete(task);
+    setDeleteConfirmModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!taskToDelete) return;
+
+    if (taskToDelete.recurring) {
       setConfirmMessage('This is a recurring event. Would you like to delete all instances or just this one?');
       setConfirmAction('delete');
-      setPendingTask(task);
+      setPendingTask(taskToDelete);
       setConfirmModalOpen(true);
     } else {
-      setDeletedTasks(prev => [...prev, { ...task, deletedAt: Date.now() }]);
+      const updatedEvents = events.filter(e => e.taskId !== taskToDelete.taskId);
+      
+      try {
+        // Save to localStorage before updating state
+        localStorage.setItem('tasks', JSON.stringify(updatedEvents));
+        
+        // Store the action for undo
+        setLastAction({
+          type: 'delete',
+          tasks: [taskToDelete],
+          previousEvents: [...events]
+        });
+        
+        setEvents(updatedEvents);
+        setShowUndo(true);
+        setTimeout(() => setShowUndo(false), 5000);
+      } catch (error) {
+        console.error('Error deleting task:', error);
+        setErrorMessage('Failed to delete task. Please try again.');
+      }
+    }
+    setDeleteConfirmModalOpen(false);
+    setTaskToDelete(null);
+  };
+
+  const handleDeleteRecurring = (action) => {
+    if (!pendingTask) return;
+
+    try {
+      let updatedEvents;
+      let deletedTasks;
+
+      if (action === 'all') {
+        // For recurring events, match the base taskId (before the hyphen)
+        const baseTaskId = pendingTask.taskId.split('-')[0];
+        deletedTasks = events.filter(event => 
+          event.taskId === pendingTask.taskId || 
+          (event.metadata?.recurringGroupId === baseTaskId)
+        );
+        updatedEvents = events.filter(event => 
+          event.taskId !== pendingTask.taskId && 
+          event.metadata?.recurringGroupId !== baseTaskId
+        );
+      } else {
+        // Delete only the selected instance
+        deletedTasks = [pendingTask];
+        updatedEvents = events.filter(event => event.taskId !== pendingTask.taskId);
+      }
+
+      // Save to localStorage before updating state
+      localStorage.setItem('tasks', JSON.stringify(updatedEvents));
+
+      // Store the action for undo
       setLastAction({
         type: 'delete',
-        taskId: taskId,
+        tasks: deletedTasks,
         previousEvents: [...events]
       });
-      setEvents(prevEvents => prevEvents.filter(task => task.taskId !== taskId));
-      setShowDelete(null);
+
+      setEvents(updatedEvents);
       setShowUndo(true);
       setTimeout(() => setShowUndo(false), 5000);
+    } catch (error) {
+      console.error('Error deleting recurring task:', error);
+      setErrorMessage('Failed to delete recurring task. Please try again.');
+    } finally {
+      setConfirmModalOpen(false);
+      setPendingTask(null);
     }
   };
 
   const handleConfirmAction = (action) => {
+    if (action === 'cancel') {
+      setConfirmModalOpen(false);
+      setPendingTask(null);
+      return;
+    }
+
     if (confirmAction === 'edit') {
       if (pendingTask) {
         if (action === 'all') {
@@ -274,13 +526,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
           setEvents(prevEvents => prevEvents.filter(task => task.taskId !== pendingTask.taskId));
         }
       }
-      setShowDelete(null);
     }
-    setConfirmModalOpen(false);
-    setPendingTask(null);
-  };
-
-  const handleCancelConfirm = () => {
     setConfirmModalOpen(false);
     setPendingTask(null);
   };
@@ -349,23 +595,158 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     return `${adjustedHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
-  const handleSaveEdit = () => {
-    if (selectedTask.title.trim() && selectedTask.startTime && selectedTask.endTime) {
-      const updatedTask = {
-        ...selectedTask,
-        metadata: { ...selectedTask.metadata, lastUpdated: new Date().toISOString() },
-      };
-      handleUpdateTask(selectedTask.taskId, updatedTask);
+  const handleSaveEdit = (allowOverlap = false) => {
+    if (!selectedTask) return;
+
+    const timeErrors = validateTimeInputs(selectedTask.startTime, selectedTask.endTime);
+    if (Object.keys(timeErrors).length > 0) {
+      setErrors(timeErrors);
+      return;
+    }
+
+    // Only check for overlaps if allowOverlap is false
+    if (!allowOverlap && checkForOverlappingEvents(selectedTask.startTime, selectedTask.endTime, selectedTask.taskId, selectedTask.date)) {
+      setErrors({ overlap: 'This event overlaps with an existing event' });
+      return;
+    }
+
+    if (!selectedTask.title.trim()) {
+      setErrors({ title: 'Title is required' });
+      return;
+    }
+
+    // Validate recurring options if task is recurring
+    if (selectedTask.recurring && (!selectedTask.recurringOptions?.endDate || 
+        (selectedTask.recurringOptions.frequency === 'weekly' && 
+         (!selectedTask.recurringOptions.weekDays || selectedTask.recurringOptions.weekDays.length === 0)))) {
+      setErrors({ recurring: 'Please complete recurring event settings' });
+      return;
+    }
+
+    try {
+      let tasksToUpdate = [];
+      const baseTaskId = selectedTask.taskId.split('-')[0];
+      
+      if (selectedTask.recurring && selectedTask.recurringOptions) {
+        // Generate new recurring dates
+        const recurringDates = generateRecurringDates(
+          new Date(`${selectedTask.date}T${selectedTask.startTime}`),
+          selectedTask.recurringOptions
+        );
+
+        if (recurringDates.length === 0) {
+          setErrors({ recurring: 'No valid recurring dates were generated' });
+          return;
+        }
+
+        // Create updated tasks for all recurring instances
+        tasksToUpdate = recurringDates.map((date, index) => {
+          const startTime = date.toTimeString().slice(0, 5);
+          const durationMs = new Date(`1970/01/01 ${selectedTask.endTime}`).getTime() - 
+                           new Date(`1970/01/01 ${selectedTask.startTime}`).getTime();
+          const endTime = new Date(date.getTime() + durationMs).toTimeString().slice(0, 5);
+
+          return {
+            ...selectedTask,
+            taskId: `${baseTaskId}-${index}`,
+            date: getLocalDateString(date),
+            startTime,
+            endTime,
+            metadata: {
+              ...selectedTask.metadata,
+              lastUpdated: new Date().toISOString(),
+              recurringGroupId: baseTaskId
+            }
+          };
+        });
+
+        // Remove all existing instances of this recurring event
+        const updatedEvents = events.filter(event => 
+          !event.taskId.startsWith(baseTaskId)
+        );
+
+        // Add all new recurring instances
+        updatedEvents.push(...tasksToUpdate);
+
+        // Save to localStorage
+        localStorage.setItem('tasks', JSON.stringify(updatedEvents));
+        
+        // Update state
+        setEvents(updatedEvents);
+        setLastAction({
+          type: 'edit',
+          tasks: tasksToUpdate,
+          previousEvents: [...events]
+        });
+      } else {
+        // Single task update
+        const updatedTask = {
+          ...selectedTask,
+          title: selectedTask.title.trim(),
+          description: selectedTask.description?.trim() || '',
+          metadata: { 
+            ...selectedTask.metadata, 
+            lastUpdated: new Date().toISOString() 
+          }
+        };
+
+        // Update the single task in events array
+        const updatedEvents = events.map(event => 
+          event.taskId === selectedTask.taskId ? updatedTask : event
+        );
+
+        // Save to localStorage
+        localStorage.setItem('tasks', JSON.stringify(updatedEvents));
+        
+        // Update state
+        setEvents(updatedEvents);
+        setLastAction({
+          type: 'edit',
+          tasks: [updatedTask],
+          previousEvents: [...events]
+        });
+      }
+
+      setShowUndo(true);
+      setTimeout(() => setShowUndo(false), 5000);
       setEditModalOpen(false);
       setSelectedTask(null);
+      setErrors({});
+    } catch (error) {
+      console.error('Error saving edit:', error);
+      setErrorMessage('Failed to save changes. Please try again.');
     }
   };
 
   const handleUndo = () => {
-    if (lastAction) {
-      setEvents(lastAction.previousEvents);
-      setLastAction(null);
+    if (!lastAction) return;
+
+    try {
+      let updatedEvents;
+      
+      if (lastAction.type === 'add') {
+        // Undo add by restoring previous events
+        updatedEvents = [...lastAction.previousEvents];
+      } else if (lastAction.type === 'delete') {
+        // Undo delete by adding back deleted tasks
+        updatedEvents = [...events, ...lastAction.tasks];
+      } else if (lastAction.type === 'edit') {
+        // Undo edit by restoring previous version of tasks
+        updatedEvents = events.map(event => {
+          const previousVersion = lastAction.previousEvents.find(e => e.taskId === event.taskId);
+          return previousVersion || event;
+        });
+      }
+
+      // Save to localStorage
+      localStorage.setItem('tasks', JSON.stringify(updatedEvents));
+      
+      setEvents(updatedEvents);
       setShowUndo(false);
+      setLastAction(null);
+    } catch (error) {
+      console.error('Error undoing action:', error);
+      setErrorMessage('Failed to undo last action. Please try again.');
     }
   };
 
@@ -380,10 +761,37 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
 
   return (
     <div className="day-details">
+      {errorMessage && (
+        <div className="error-banner" role="alert">
+          {errorMessage}
+          <button onClick={() => setErrorMessage('')} aria-label="Dismiss error">
+            ×
+          </button>
+        </div>
+      )}
+      {isLoading && (
+        <div className="loading-overlay" role="status">
+          <div className="loading-spinner"></div>
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      )}
       {showUndo && (
-        <div className="undo-notification">
-          <span>Task {lastAction?.type === 'add' ? 'added' : 'deleted'}</span>
-          <button onClick={handleUndo}>Undo</button>
+        <div className="undo-notification" role="alert">
+          <div className="undo-content">
+            <span className="undo-message">
+              {lastAction?.type === 'delete' ? (
+                <>Task "{lastAction.tasks[0].title}" deleted</>
+              ) : lastAction?.type === 'edit' ? (
+                <>Task "{lastAction.tasks[0].title}" edited</>
+              ) : (
+                <>Task "{lastAction.tasks[0].title}" added</>
+              )}
+            </span>
+            <button className="undo-button" onClick={handleUndo}>
+              Undo
+            </button>
+          </div>
+          <div className="undo-timer"></div>
         </div>
       )}
       {showUndoNotification && (
@@ -429,7 +837,12 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
           <h3>Today's Timeline</h3>
           <div className="timeline">
             {dayTasks.map((task) => (
-              <div key={task.taskId} className="timeline-item">
+              <div 
+                key={task.taskId} 
+                className={`timeline-item ${task.completed ? 'completed' : ''}`}
+                style={{ borderLeft: `5px solid ${getPriorityColor(task.priority)}` }}
+                onClick={() => toggleTask(task.taskId)}
+              >
                 <div className="task-content">
                   <div className="task-title">
                     {task.title}
@@ -451,8 +864,14 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
                   )}
                 </div>
                 <div className="task-actions">
-                  <button className="edit-button" onClick={() => handleEditTask(task)}>Edit</button>
-                  <button className="delete-button" onClick={() => handleDeleteTask(task.taskId)}>Delete</button>
+                  <button className="edit-button" onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditTask(task);
+                  }}>Edit</button>
+                  <button className="delete-button" onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteTask(task);
+                  }}>Delete</button>
                 </div>
               </div>
             ))}
@@ -520,9 +939,17 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
                 <div className="overlap-warning-popup">
                   <h3>Schedule Conflict</h3>
                   <p>{errors.overlap}</p>
-                  <button className="close-button" onClick={() => setErrors({})}>
-                    Close
-                  </button>
+                  <div className="modal-buttons">
+                    <button className="save-btn" onClick={() => {
+                      setErrors({});
+                      handleAddTask(true); // Pass true to indicate overlap is accepted
+                    }}>
+                      Proceed Anyway
+                    </button>
+                    <button className="cancel-btn" onClick={() => setErrors({})}>
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
               <div className="input-row">
@@ -542,7 +969,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
                 />
               </div>
               <div className="input-row">
-                <button onClick={handleAddTask}>Add</button>
+                <button onClick={() => handleAddTask()}>Add</button>
               </div>
             </div>
           </div>
@@ -624,8 +1051,26 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
                 onChange={(e) => handleRecurringChange(e.target.checked)}
               />
             </div>
+            {errors.overlap && (
+              <div className="overlap-warning-popup">
+                <h3>Schedule Conflict</h3>
+                <p>{errors.overlap}</p>
+                <div className="modal-buttons">
+                  <button className="save-btn" onClick={() => {
+                    setErrors({});
+                    handleSaveEdit(true); // Pass true to indicate overlap is accepted
+                  }}>
+                    Proceed Anyway
+                  </button>
+                  <button className="cancel-btn" onClick={() => setErrors({})}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="modal-buttons">
-              <button className="save-btn" onClick={handleSaveEdit}>Save</button>
+              <button className="save-btn" onClick={() => handleSaveEdit()}>Save</button>
+              <button className="delete-btn" onClick={handleDeleteTask}>Delete</button>
               <button className="cancel-btn" onClick={() => setEditModalOpen(false)}>Cancel</button>
             </div>
           </div>
@@ -642,6 +1087,27 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
               <button className="save-btn" onClick={() => handleConfirmAction('all')}>All Instances</button>
               <button className="save-btn" onClick={() => handleConfirmAction('single')}>Just This One</button>
               <button className="cancel-btn" onClick={() => handleConfirmAction('cancel')}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">Confirm Delete</div>
+            <div className="confirm-message">
+              Are you sure you want to delete "{taskToDelete?.title}"?
+              <br />
+              <span className="warning-text">This action can be undone for the next 5 seconds.</span>
+            </div>
+            <div className="modal-buttons">
+              <button className="delete-btn" onClick={confirmDelete}>Delete</button>
+              <button className="cancel-btn" onClick={() => {
+                setDeleteConfirmModalOpen(false);
+                setTaskToDelete(null);
+              }}>Cancel</button>
             </div>
           </div>
         </div>

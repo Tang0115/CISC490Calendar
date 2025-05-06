@@ -71,6 +71,11 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [pendingEvent, setPendingEvent] = useState(null);
+  const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
+  const [lastAction, setLastAction] = useState(null);
+  const [showUndo, setShowUndo] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (calendarRef.current) {
@@ -220,18 +225,54 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
   };
 
   const handleDeleteEvent = () => {
-    if (selectedEvent.recurring) {
-      setConfirmMessage('This is a recurring event. Would you like to delete all instances or just this one?');
-      setConfirmAction('delete');
-      setPendingEvent(selectedEvent);
-      setConfirmModalOpen(true);
-    } else {
-      setEvents(prevEvents => prevEvents.filter(ev => ev.taskId !== selectedEvent.taskId));
-      setEditModalOpen(false);
+    if (selectedEvent) {
+      setTaskToDelete(selectedEvent);
+      setDeleteConfirmModalOpen(true);
     }
   };
 
+  const confirmDelete = () => {
+    if (!taskToDelete) return;
+
+    if (taskToDelete.recurring) {
+      setConfirmMessage('This is a recurring event. Would you like to delete all instances or just this one?');
+      setConfirmAction('delete');
+      setPendingEvent(taskToDelete);
+      setConfirmModalOpen(true);
+    } else {
+      try {
+        const updatedEvents = events.filter(e => e.taskId !== taskToDelete.taskId);
+        
+        // Save to localStorage before updating state
+        localStorage.setItem('tasks', JSON.stringify(updatedEvents));
+        
+        // Store the action for undo
+        setLastAction({
+          type: 'delete',
+          tasks: [taskToDelete],
+          previousEvents: [...events]
+        });
+        
+        setEvents(updatedEvents);
+        setShowUndo(true);
+        setTimeout(() => setShowUndo(false), 5000);
+        setEditModalOpen(false);
+      } catch (error) {
+        console.error('Error deleting event:', error);
+        setErrorMessage('Failed to delete event. Please try again.');
+      }
+    }
+    setDeleteConfirmModalOpen(false);
+    setTaskToDelete(null);
+  };
+
   const handleConfirmAction = (action) => {
+    if (action === 'cancel') {
+      setConfirmModalOpen(false);
+      setPendingEvent(null);
+      return;
+    }
+
     if (confirmAction === 'edit' && pendingEvent) {
       let eventsToUpdate = [pendingEvent];
       if (action === 'all' && pendingEvent.recurring && pendingEvent.recurringOptions) {
@@ -248,34 +289,55 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
           endTime: new Date(date.getTime() + (new Date(`1970/01/01 ${pendingEvent.endTime}`).getTime() - new Date(`1970/01/01 ${pendingEvent.startTime}`).getTime())).toTimeString().slice(0, 5),
         }));
       }
-
+      
       setEvents(prevEvents => {
-        if (action === 'all') {
-          const filteredEvents = prevEvents.filter(ev => !ev.taskId.startsWith(pendingEvent.taskId.split('-')[0]));
-          return [...filteredEvents, ...eventsToUpdate];
-        } else if (action === 'single') {
-          return prevEvents.map(ev => (ev.taskId === pendingEvent.taskId ? pendingEvent : ev));
-        }
-        return prevEvents;
+        const baseTaskId = pendingEvent.taskId.split('-')[0];
+        return prevEvents
+          .filter(ev => action === 'single' ? ev.taskId !== pendingEvent.taskId : !ev.taskId.startsWith(baseTaskId))
+          .concat(eventsToUpdate);
       });
+      
     } else if (confirmAction === 'delete' && pendingEvent) {
-      if (action === 'all' && pendingEvent.recurringOptions) {
-        // Delete all instances of the recurring event by matching the base taskId
+      if (action === 'all') {
         const baseTaskId = pendingEvent.taskId.split('-')[0];
         setEvents(prevEvents => prevEvents.filter(ev => !ev.taskId.startsWith(baseTaskId)));
       } else if (action === 'single') {
-        // Delete only this instance
         setEvents(prevEvents => prevEvents.filter(ev => ev.taskId !== pendingEvent.taskId));
       }
     }
-    setEditModalOpen(false);
+    
     setConfirmModalOpen(false);
     setPendingEvent(null);
+    setEditModalOpen(false);
   };
 
-  const handleCancelConfirm = () => {
-    setConfirmModalOpen(false);
-    setPendingEvent(null);
+  const handleUndo = () => {
+    if (!lastAction) return;
+
+    try {
+      let updatedEvents;
+      
+      if (lastAction.type === 'delete') {
+        // Undo delete by adding back deleted tasks
+        updatedEvents = [...events, ...lastAction.tasks];
+      } else if (lastAction.type === 'edit') {
+        // Undo edit by restoring previous version of tasks
+        updatedEvents = events.map(event => {
+          const previousVersion = lastAction.previousEvents.find(e => e.taskId === event.taskId);
+          return previousVersion || event;
+        });
+      }
+
+      // Save to localStorage
+      localStorage.setItem('tasks', JSON.stringify(updatedEvents));
+      
+      setEvents(updatedEvents);
+      setShowUndo(false);
+      setLastAction(null);
+    } catch (error) {
+      console.error('Error undoing action:', error);
+      setErrorMessage('Failed to undo last action. Please try again.');
+    }
   };
 
   const calendarEvents = useMemo(() => {
@@ -312,6 +374,35 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
 
   return (
     <div className="calendar-view">
+      {errorMessage && (
+        <div className="error-banner" role="alert">
+          {errorMessage}
+          <button onClick={() => setErrorMessage('')} aria-label="Dismiss error">
+            ×
+          </button>
+        </div>
+      )}
+
+      {showUndo && (
+        <div className="undo-notification" role="alert">
+          <div className="undo-content">
+            <span className="undo-message">
+              {lastAction?.type === 'delete' ? (
+                <>Event "{lastAction.tasks[0].title}" deleted</>
+              ) : lastAction?.type === 'edit' ? (
+                <>Event "{lastAction.tasks[0].title}" edited</>
+              ) : (
+                <>Event "{lastAction.tasks[0].title}" added</>
+              )}
+            </span>
+            <button className="undo-button" onClick={handleUndo}>
+              Undo
+            </button>
+          </div>
+          <div className="undo-timer"></div>
+        </div>
+      )}
+
       <FullCalendar
         ref={calendarRef}
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -505,6 +596,27 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
               <button className="save-btn" onClick={() => handleConfirmAction('all')}>All Instances</button>
               <button className="save-btn" onClick={() => handleConfirmAction('single')}>Just This One</button>
               <button className="cancel-btn" onClick={() => handleConfirmAction('cancel')}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">Confirm Delete</div>
+            <div className="confirm-message">
+              Are you sure you want to delete "{taskToDelete?.title}"?
+              <br />
+              <span className="warning-text">This action can be undone for the next 5 seconds.</span>
+            </div>
+            <div className="modal-buttons">
+              <button className="delete-btn" onClick={confirmDelete}>Delete</button>
+              <button className="cancel-btn" onClick={() => {
+                setDeleteConfirmModalOpen(false);
+                setTaskToDelete(null);
+              }}>Cancel</button>
             </div>
           </div>
         </div>
