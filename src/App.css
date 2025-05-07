@@ -1,23 +1,25 @@
 /* Base Theme Colors - Old vs New */
 :root {
   /* Light Theme */
-  --light-bg: #F5F5DC;          /* Old: #F5F5DC (beige) - New: More neutral for better readability */
-  --light-text: #164046;        /* Old: #164046 (dark teal) - New: Darker for better contrast */
-  --light-primary: #DDA853;     /* Old: #DDA853 (gold) - New: Adjusted for better contrast */
-  --light-secondary: #A8CCDC;   /* Old: #A8CCDC (light blue) - New: Darker for better contrast */
-  
+  --light-bg: #f4f1e1;           /* Soft ivory with a touch of warmth, very light */
+  --light-text: #3d2a2a;         /* Deep espresso brown for text, providing excellent readability */
+  --light-primary: #a97d64;      /* Warm terracotta with a golden touch (buttons/highlights) */
+  --light-secondary: #c7b599;    /* Subtle beige with a hint of gray for secondary UI elements */
+
   /* Dark Theme */
-  --dark-bg: #0D2C33;          /* Old: #16404D - New: Darker for better contrast */
-  --dark-text: #FFFFFF;        /* Old: #FBF5DD - New: Pure white for maximum contrast */
-  --dark-primary: #FFB649;     /* Old: #DDA853 - New: Brighter for better visibility */
-  --dark-secondary: #4A8599;   /* Old: #A6CDC6 - New: More saturated for better contrast */
-  
+  --dark-bg: #2b1b11;            /* Deep coffee with red undertones for a rich and immersive feel */
+  --dark-text: #f0e4d7;          /* Soft ivory with a hint of peach, pleasant for dark mode */
+  --dark-primary: #d9a766;       /* Golden amber with copper accents to brighten primary elements */
+  --dark-secondary: #7c5b4a;     /* Smoky mahogany, perfect for subtle accents and borders */
+
   /* Accent Colors */
-  --error: #DC3545;           /* Improved error red */
-  --success: #28A745;         /* Improved success green */
-  --warning: #FFC107;         /* Improved warning yellow */
-  --info: #17A2B8;           /* Improved info blue */
+  --error: #b13b3b;              /* Rich, earthy crimson with depth, for clear error indication */
+  --success: #5c8c6f;            /* Muted sage green for a peaceful and successful look */
+  --warning: #e6b800;            /* Bright, golden yellow with a warm undertone for warnings */
+  --info: #3b6b8e;               /* Cool, slate blue with a hint of gray for informational cues */
 }
+
+
 
 .app {
   width: 100vw;
@@ -244,6 +246,12 @@ h1 {
   flex: 1;
   overflow-y: auto;
   max-height: none;
+  max-width: 900px;
+}
+
+.schedule-section, .right-section {
+  max-height: 900px;
+  max-width: 900px;
 }
 
 .timeline-section {
@@ -253,6 +261,7 @@ h1 {
   border-radius: 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  max-height: 750px;
 }
 
 .app.dark .timeline-section {
@@ -319,14 +328,16 @@ h1 {
 
 .schedule-section, .ai-suggestions {
   margin-bottom: 0;
-  padding: 15px; /* Match timeline-section padding */
-  background-color: var(--light-bg);
+  padding: 15px;
+  background-color: var(--light-sec);
   border: 2px solid var(--light-secondary);
   border-radius: 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-  overflow-y: auto; /* Enable scrolling if content overflows */
+  overflow-y: auto;
+  max-height: 950px; /* Match .timeline-section */
 }
+
 
 .app.dark .schedule-section, .app.dark .ai-suggestions {
   background-color: #16404D;
@@ -334,10 +345,12 @@ h1 {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
+
+
 .task-input-complex {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 25px;
   align-items: flex-start;
 }
 
