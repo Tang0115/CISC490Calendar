@@ -800,7 +800,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
           <button onClick={handleUndoDelete}>Undo</button>
         </div>
       )}
-      <h2>Details for {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric'})}, 2025</h2>
+      <h2>Details for {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h2>
       <div className="date-navigation">
         <button onClick={handlePreviousDay}>Previous Day</button>
         <button onClick={handleToday}>Today</button>
@@ -878,7 +878,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
           </div>
         </div>
         <div className="right-section">
-          <h3>Add a New Task</h3>
+          <h3>Add Task</h3>
           <div className="schedule-section">
             <div className="task-input-complex">
               <div className="input-row">

@@ -30,7 +30,9 @@ const generateRecurringDates = (startDate, recurringOptions) => {
         dates.push(new Date(currentDate));
       }
       currentDate.setDate(currentDate.getDate() + 1);
-      if (currentDate.getDay() === 0) {
+      
+      // If we've completed a week and have an interval > 1, skip ahead
+      if (currentDate.getDay() === 0 && recurringOptions.interval > 1) {
         currentDate.setDate(currentDate.getDate() + (recurringOptions.interval - 1) * 7);
       }
     } else if (recurringOptions.frequency === 'monthly') {
@@ -148,17 +150,45 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
 
   const handleRecurringOptionsSave = (options) => {
     if (selectedEvent) {
-      setSelectedEvent({ ...selectedEvent, recurringOptions: options });
+      setSelectedEvent({ 
+        ...selectedEvent, 
+        recurringOptions: options,
+        recurring: true // Ensure recurring stays checked
+      });
     } else {
-      setNewEvent({ ...newEvent, recurringOptions: options });
+      setNewEvent({ 
+        ...newEvent, 
+        recurringOptions: options,
+        recurring: true // Ensure recurring stays checked
+      });
     }
+    setRecurringModalOpen(false);
   };
 
   const handleCreateEvent = () => {
-    if (newEvent.title.trim() && newEvent.startTime && newEvent.endTime) {
+    // Validate required fields
+    if (!newEvent.title.trim()) {
+      setErrorMessage('Title is required');
+      return;
+    }
+
+    if (!newEvent.startTime || !newEvent.endTime) {
+      setErrorMessage('Start time and end time are required');
+      return;
+    }
+
+    // Validate recurring options if event is recurring
+    if (newEvent.recurring && (!newEvent.recurringOptions?.endDate || 
+        (newEvent.recurringOptions.frequency === 'weekly' && 
+         (!newEvent.recurringOptions.weekDays || newEvent.recurringOptions.weekDays.length === 0)))) {
+      setErrorMessage('Please complete recurring event settings');
+      return;
+    }
+
+    try {
       const eventData = {
         taskId: Date.now().toString(),
-        title: newEvent.title,
+        title: newEvent.title.trim(),
         description: newEvent.description || '',
         startTime: newEvent.startTime,
         endTime: newEvent.endTime,
@@ -178,6 +208,11 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
           eventData.recurringOptions
         );
 
+        if (recurringDates.length === 0) {
+          setErrorMessage('No valid recurring dates were generated');
+          return;
+        }
+
         eventsToAdd = recurringDates.map((date, index) => ({
           ...eventData,
           taskId: `${eventData.taskId}-${index}`,
@@ -187,7 +222,24 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
         }));
       }
 
-      setEvents(prevEvents => [...prevEvents, ...eventsToAdd]);
+      // Save to localStorage before updating state
+      const updatedEvents = [...events, ...eventsToAdd];
+      localStorage.setItem('tasks', JSON.stringify(updatedEvents));
+      
+      // Update state
+      setEvents(updatedEvents);
+      
+      // Store the action for undo
+      setLastAction({
+        type: 'create',
+        tasks: eventsToAdd,
+        previousEvents: [...events]
+      });
+      
+      setShowUndo(true);
+      setTimeout(() => setShowUndo(false), 5000);
+      
+      // Reset form and close modal
       setCreateModalOpen(false);
       setNewEvent({
         title: '',
@@ -199,6 +251,10 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
         recurring: false,
         date: getLocalDateString(selectedDate),
       });
+      setErrorMessage('');
+    } catch (error) {
+      console.error('Error creating event:', error);
+      setErrorMessage('Failed to create event. Please try again.');
     }
   };
 
@@ -326,6 +382,9 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
           const previousVersion = lastAction.previousEvents.find(e => e.taskId === event.taskId);
           return previousVersion || event;
         });
+      } else if (lastAction.type === 'create') {
+        // Undo create by removing added tasks
+        updatedEvents = events.filter(e => !lastAction.tasks.some(t => t.taskId === e.taskId));
       }
 
       // Save to localStorage
@@ -580,7 +639,13 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
       {/* Recurring Options Modal */}
       <RecurringOptionsModal
         isOpen={recurringModalOpen}
-        onClose={() => setRecurringModalOpen(false)}
+        onClose={() => {
+          setRecurringModalOpen(false);
+          // Only uncheck recurring if we're in create mode and no recurring options were set
+          if (!selectedEvent && !newEvent.recurringOptions) {
+            setNewEvent(prev => ({ ...prev, recurring: false }));
+          }
+        }}
         onSave={handleRecurringOptionsSave}
         recurringOptions={recurringOptions}
         setRecurringOptions={setRecurringOptions}
