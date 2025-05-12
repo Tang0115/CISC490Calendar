@@ -1,23 +1,25 @@
 /* Base Theme Colors - Old vs New */
 :root {
   /* Light Theme */
-  --light-bg: #F5F5DC;          /* Old: #F5F5DC (beige) - New: More neutral for better readability */
-  --light-text: #164046;        /* Old: #164046 (dark teal) - New: Darker for better contrast */
-  --light-primary: #DDA853;     /* Old: #DDA853 (gold) - New: Adjusted for better contrast */
-  --light-secondary: #A8CCDC;   /* Old: #A8CCDC (light blue) - New: Darker for better contrast */
-  
+  --light-bg: #f4f1e1;           /* Soft ivory with a touch of warmth, very light */
+  --light-text: #3d2a2a;         /* Deep espresso brown for text, providing excellent readability */
+  --light-primary: #a97d64;      /* Warm terracotta with a golden touch (buttons/highlights) */
+  --light-secondary: #c7b599;    /* Subtle beige with a hint of gray for secondary UI elements */
+
   /* Dark Theme */
-  --dark-bg: #0D2C33;          /* Old: #16404D - New: Darker for better contrast */
-  --dark-text: #FFFFFF;        /* Old: #FBF5DD - New: Pure white for maximum contrast */
-  --dark-primary: #FFB649;     /* Old: #DDA853 - New: Brighter for better visibility */
-  --dark-secondary: #4A8599;   /* Old: #A6CDC6 - New: More saturated for better contrast */
-  
+  --dark-bg: #2b1b11;            /* Deep coffee with red undertones for a rich and immersive feel */
+  --dark-text: #f0e4d7;          /* Soft ivory with a hint of peach, pleasant for dark mode */
+  --dark-primary: #d9a766;       /* Golden amber with copper accents to brighten primary elements */
+  --dark-secondary: #7c5b4a;     /* Smoky mahogany, perfect for subtle accents and borders */
+
   /* Accent Colors */
-  --error: #DC3545;           /* Improved error red */
-  --success: #28A745;         /* Improved success green */
-  --warning: #FFC107;         /* Improved warning yellow */
-  --info: #17A2B8;           /* Improved info blue */
+  --error: #b13b3b;              /* Rich, earthy crimson with depth, for clear error indication */
+  --success: #5c8c6f;            /* Muted sage green for a peaceful and successful look */
+  --warning: #e6b800;            /* Bright, golden yellow with a warm undertone for warnings */
+  --info: #3b6b8e;               /* Cool, slate blue with a hint of gray for informational cues */
 }
+
+
 
 .app {
   width: 100vw;
@@ -50,7 +52,7 @@ header {
 }
 
 .app.dark header {
-  background-color: #1a3f47;
+  background-color: var(--dark-bg);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
 }
 
@@ -116,7 +118,7 @@ h1 {
 
 .theme-toggle-btn:hover {
   background-color: #DDA853;
-  color: #16404D;
+  color: var(--dark-secondary);
 }
 
 .menu {
@@ -135,8 +137,8 @@ h1 {
 }
 
 .app.dark .menu {
-  background: #16404D;
-  border-color: #A6CDC6;
+  background: var(--dark-bg);
+  border-color: var(--dark-text);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
 }
 
@@ -179,7 +181,7 @@ h1 {
 }
 
 .app.dark .day-details {
-  background-color: #16404D;
+  background-color: var(--dark-bg);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
@@ -220,8 +222,8 @@ h1 {
 }
 
 .app.dark .date-selector select {
-  background-color: #1a4d5d;
-  border-color: #A6CDC6;
+  background-color: var(--dark-bg);
+  border-color: var(--dark-text);
   color: #FBF5DD;
 }
 
@@ -244,6 +246,12 @@ h1 {
   flex: 1;
   overflow-y: auto;
   max-height: none;
+  max-width: 900px;
+}
+
+.schedule-section, .right-section {
+  max-height: 900px;
+  max-width: 900px;
 }
 
 .timeline-section {
@@ -253,11 +261,12 @@ h1 {
   border-radius: 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  max-height: 750px;
 }
 
 .app.dark .timeline-section {
-  background-color: #16404D;
-  border-color: #A6CDC6;
+  background-color: var(--dark-secondary);
+  border-color: var(--dark-text);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
@@ -278,7 +287,7 @@ h1 {
 }
 
 .app.dark .timeline-item {
-  background-color: #1a3f47;
+  background-color: var(--dark-primary);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
@@ -319,25 +328,29 @@ h1 {
 
 .schedule-section, .ai-suggestions {
   margin-bottom: 0;
-  padding: 15px; /* Match timeline-section padding */
-  background-color: var(--light-bg);
+  padding: 15px;
+  background-color: var(--light-sec);
   border: 2px solid var(--light-secondary);
   border-radius: 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-  overflow-y: auto; /* Enable scrolling if content overflows */
+  overflow-y: auto;
+  max-height: 950px; /* Match .timeline-section */
 }
 
+
 .app.dark .schedule-section, .app.dark .ai-suggestions {
-  background-color: #16404D;
-  border-color: #A6CDC6;
+  background-color: var(--dark-secondary);
+  border-color: var(--dark-text);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
+
+
 
 .task-input-complex {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 25px;
   align-items: flex-start;
 }
 
@@ -369,8 +382,8 @@ h1 {
 }
 
 .app.dark .input-row select, .app.dark .input-row input, .app.dark .input-row button {
-  background-color: #1a4d5d;
-  border-color: #A6CDC6;
+  background-color: var(--dark-bg);
+  border-color: var(--dark-text);
   color: #FBF5DD;
 }
 
@@ -380,7 +393,7 @@ h1 {
 }
 
 .app.dark .input-row select:hover, .app.dark .input-row input:hover, .app.dark .input-row button:hover {
-  background-color: #1e5d6d;
+  background-color: var(--dark-secondary);
   border-color: #DDA853;
   color: #FBF5DD;
 }
@@ -410,7 +423,7 @@ h1 {
 }
 
 .app.dark .add-task-button {
-  background-color: var(--dark-primary);
+  background-color: var(--dark-bg);
   color: #000000;
 }
 
@@ -437,8 +450,8 @@ h1 {
 }
 
 .app.dark .task-list li {
-  background-color: #1a4d5d;
-  border-color: #A6CDC6;
+  background-color: var(--dark-bg);
+  border-color: var(--dark-text);
   color: #FBF5DD;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
@@ -448,14 +461,14 @@ h1 {
 }
 
 .app.dark .task-list li:hover {
-  background-color: #1e5d6d;
+  background-color: var(--dark-secondary);
 }
 
 .task-list li.work { background-color: #E3F2FD; }
 .task-list li.personal { background-color: #E8F5E9; }
 .task-list li.school { background-color: #F3E5F5; }
 
-.app.dark .task-list li.work { background-color: #1a3f47; }
+.app.dark .task-list li.work { background-color: 1a3f47#; }
 .app.dark .task-list li.personal { background-color: #1a473f; }
 .app.dark .task-list li.school { background-color: #471a47; }
 
@@ -464,7 +477,7 @@ h1 {
 .priority-high { border-left: 5px solid #DC3545; }
 .priority-critical { border-left: 5px solid #9C0000; }
 
-.app.dark .priority-low { border-left-color: #A6CDC6; }
+.app.dark .priority-low { border-left-color: var(--dark-text); }
 .app.dark .priority-medium { border-left-color: #DDA853; }
 .app.dark .priority-high { border-left-color: #e6b86c; }
 .app.dark .priority-critical { border-left-color: #e67c6c; }
@@ -476,7 +489,7 @@ h1 {
 }
 
 .app.dark .completed {
-  color: #A6CDC6;
+  color: var(--dark-text);
 }
 
 .recurring-badge {
@@ -506,7 +519,7 @@ h1 {
 }
 
 .app.dark .task-metadata {
-  color: #A6CDC6;
+  color: var(--dark-text);
 }
 
 .task-list li:hover .task-metadata {
@@ -524,14 +537,14 @@ h1 {
 }
 
 .app.dark .suggestion-item {
-  background-color: #1a4d5d;
-  border-color: #A6CDC6;
+  background-color: var(--dark-bg);
+  border-color: var(--dark-text);
   color: #FBF5DD;
 }
 
 .suggestion-item:hover {
   background-color: #DDA853;
-  color: #16404D;
+  color: var(--dark-secondary);
 }
 
 /* FullCalendar Container */
@@ -547,7 +560,7 @@ h1 {
 }
 
 .app.dark .fc {
-  background-color: #16404D;
+  background-color: var(--dark-secondary);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
@@ -560,7 +573,7 @@ h1 {
 }
 
 .app.dark .fc .fc-toolbar {
-  background-color: #1a4d5d;
+  background-color: (var(--dark-bg));
   color: #FBF5DD;
 }
 
@@ -579,7 +592,7 @@ h1 {
 
 .app.dark .fc .fc-button {
   background-color: #DDA853;
-  color: #16404D;
+  color: var(--dark-secondary);
 }
 
 .app.dark .fc .fc-button:hover {
@@ -593,7 +606,7 @@ h1 {
 }
 
 .app.dark .fc .fc-col-header-cell {
-  background-color: #1a4d5d;
+  background-color: var(--dark-bg);
   color: #FBF5DD;
 }
 
@@ -626,18 +639,18 @@ h1 {
 
 /* Dark Mode Adjustments */
 .app.dark .fc .fc-event.priority-low {
-  background-color: #A6CDC6;
-  color: #16404D;
+  background-color: var(--dark-text);
+  color: var(--dark-secondary);
 }
 
 .app.dark .fc .fc-event.priority-medium {
   background-color: #DDA853;
-  color: #16404D;
+  color: var(--dark-secondary);
 }
 
 .app.dark .fc .fc-event.priority-high {
   background-color: #e6b86c;
-  color: #16404D;
+  color: var(--dark-secondary);
 }
 
 .app.dark .fc .fc-event.priority-critical {
@@ -662,7 +675,7 @@ h1 {
 
 .app.dark .fc .fc-timegrid-slot,
 .app.dark .fc .fc-daygrid-day {
-  background-color: #16404D;
+  background-color: var(--dark-secondary);
 }
 
 /* Menu Adjustments */
@@ -673,7 +686,7 @@ h1 {
 
 .app.dark .menu button.active {
   background-color: #DDA853;
-  color: #16404D;
+  color: var(--dark-secondary);
 }
 
 /* Modal Styles */
@@ -779,7 +792,7 @@ h1 {
 
 .app.dark .modal-buttons .save-btn {
   background-color: #DDA853;
-  color: #16404D;
+  color: var(--dark-secondary);
 }
 
 .app.dark .modal-buttons .save-btn:hover {
@@ -787,12 +800,12 @@ h1 {
 }
 
 .app.dark .modal-buttons .cancel-btn {
-  background-color: #1a4d5d;
+  background-color: var(--dark-bg);
   color: #FBF5DD;
 }
 
 .app.dark .modal-buttons .cancel-btn:hover {
-  background-color: #1e5d6d;
+  background-color: var(--dark-secondary);
 }
 
 .weekday-checkboxes {
@@ -812,7 +825,7 @@ h1 {
   gap: 8px;
   padding: 8px 12px;
   background-color: #FBF5DD;
-  border: 1px solid #A6CDC6;
+  border: 1px solid var(--dark-text);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -825,19 +838,19 @@ h1 {
 }
 
 .app.dark .weekday-checkboxes {
-  background-color: #1a4d5d;
-  border-color: #A6CDC6;
+  background-color: var(--dark-bg);;
+  border-color: var(--dark-text);
 }
 
 .app.dark .weekday-checkboxes label {
-  background-color: #1a4d5d;
-  border-color: #A6CDC6;
+  background-color: var(--dark-bg);;
+  border-color: var(--dark-text);
   color: #FBF5DD;
 }
 
 .app.dark .weekday-checkboxes label:hover {
   background-color: #DDA853;
-  color: #16404D;
+  color: var(--dark-secondary);
 }
 
 .weekday-checkboxes input[type="checkbox"] {
@@ -853,7 +866,7 @@ h1 {
 }
 
 .app.dark .interval-text {
-  color: #A6CDC6;
+  color: var(--dark-text);
 }
 
 .task-actions {
@@ -874,7 +887,7 @@ h1 {
 }
 
 .app.dark .task-actions {
-  background-color: rgba(26, 77, 93, 0.9);
+  background-color: var(--dark-text);
 }
 
 .edit-button, .delete-button {
@@ -914,7 +927,7 @@ h1 {
 }
 
 .app.dark .edit-button {
-  background-color: var(--dark-primary);
+  background-color: var(--dark-bg);
   color: #FFFFFF;
 }
 
@@ -943,8 +956,8 @@ h1 {
 }
 
 .app.dark .confirm-message {
-  background-color: #1a4d5d;
-  border-color: #A6CDC6;
+  background-color: var(--dark-bg);
+  border-color: var(--dark-text);
   color: #FBF5DD;
 }
 
@@ -978,8 +991,8 @@ h1 {
 }
 
 .app.dark .preview-message {
-  background-color: #1a4d5d;
-  border-color: #A6CDC6;
+  background-color: var(--dark-bg);
+  border-color: var(--dark-text);
   color: #FBF5DD;
 }
 
@@ -1049,7 +1062,7 @@ h1 {
 }
 
 .app.dark .undo-button {
-  background-color: var(--dark-primary);
+  background-color: var(--dark-bg);
   color: #000000;
 }
 
@@ -1058,7 +1071,7 @@ h1 {
 }
 
 .app.dark .undo-timer {
-  background-color: var(--dark-primary);
+  background-color: var(--dark-bg);
 }
 
 /* Warning Text in Delete Confirmation */
@@ -1141,7 +1154,7 @@ textarea:focus {
 .app.dark input:focus,
 .app.dark select:focus,
 .app.dark textarea:focus {
-  outline-color: var(--dark-primary);
+  outline-color: var(--dark-bg);
   box-shadow: 0 0 0 3px rgba(255, 182, 73, 0.3);
 }
 
@@ -1162,25 +1175,25 @@ textarea:focus {
 .app.dark .input-row select:hover,
 .app.dark .input-row input:hover,
 .app.dark .input-row button:hover {
-  background-color: #1e5d6d;
+  background-color: var(--dark-secondary);
   border-color: #DDA853;
   color: #FBF5DD;
 }
 
 .app.dark .weekday-checkboxes label {
-  background-color: #1a4d5d;
-  border-color: #A6CDC6;
+  background-color: var(--dark-bg);
+  border-color: var(--dark-text);
   color: #FBF5DD;
 }
 
 .app.dark .weekday-checkboxes label:hover {
   background-color: #DDA853;
-  color: #16404D;
+  color: var(--dark-secondary);
 }
 
 .app.dark .preview-message {
-  background-color: #1a4d5d;
-  border-color: #A6CDC6;
+  background-color: var(--dark-bg);
+  border-color: var(--dark-text);
   color: #FBF5DD;
 }
 
@@ -1263,7 +1276,7 @@ button:focus {
   gap: 8px;
   padding: 8px 12px;
   background-color: #FBF5DD;
-  border: 1px solid #A6CDC6;
+  border: 1px solid var(--dark-text);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1350,8 +1363,8 @@ button:focus {
 
 /* Dark Mode Adjustments */
 .app.dark .overlap-warning-popup {
-  background-color: #16404D;
-  border-color: #A6CDC6;
+  background-color: var(--dark-secondary);
+  border-color: var(--dark-text);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
 }
 
@@ -1365,7 +1378,7 @@ button:focus {
 
 .app.dark .overlap-warning-popup .close-button {
   background-color: #DDA853;
-  color: #16404D;
+  color: var(--dark-secondary);
 }
 
 .app.dark .overlap-warning-popup .close-button:hover {
@@ -1530,7 +1543,7 @@ button {
 
 /* Dark Mode Adjustments */
 .app.dark .primary-button {
-  background-color: var(--dark-primary);
+  background-color: var(--dark-bg);
   color: #000000;
 }
 
@@ -1544,7 +1557,7 @@ button {
 }
 
 .app.dark .secondary-button:hover {
-  background-color: #1e5d6d;
+  background-color: var(--dark-secondary);
 }
 
 .app.dark .danger-button {
@@ -1576,7 +1589,7 @@ button {
 }
 
 .app.dark .form-input:focus {
-  border-color: var(--dark-primary);
+  border-color: var(--dark-bg);
   box-shadow: 0 0 0 2px rgba(255, 182, 73, 0.2);
 }
 
@@ -1607,7 +1620,7 @@ button {
 }
 
 .app.dark .badge-primary {
-  background-color: var(--dark-primary);
+  background-color: var(--dark-bg);
   color: #000000;
 }
 
