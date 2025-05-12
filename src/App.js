@@ -49,7 +49,7 @@ function App() {
             </button>
             <span className="current-time">{currentTime}</span>
           </div>
-          <h1>MyCalendar</h1>
+          <h1>My Calendar</h1>
           <div className="header-right">
             <div className="theme-switch-wrapper">
               <span className="theme-mode-label">Light</span>
