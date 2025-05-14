@@ -1,6 +1,11 @@
+// Tom coded this file
+// Modal component for configuring recurring event options
+// Handles frequency, interval, weekdays, and end date selection
+
 import React, { useState, useEffect, useRef } from 'react';
 
 function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: initialRecurringOptions }) {
+  // State management for recurring options
   const [recurringOptions, setRecurringOptions] = useState({
     frequency: 'daily',
     weekDays: [],
@@ -9,6 +14,7 @@ function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: init
     ...initialRecurringOptions
   });
 
+  // Refs for modal focus management
   const modalRef = useRef(null);
   const firstFocusableElementRef = useRef(null);
   const lastFocusableElementRef = useRef(null);
@@ -55,6 +61,7 @@ function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: init
     }
   }, [isOpen, onClose]);
 
+  // Save and validation functions
   const handleSave = () => {
     // Validate required fields
     if (!recurringOptions.endDate) {
@@ -78,6 +85,7 @@ function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: init
     });
   };
 
+  // Preview message generation
   const getPreviewMessage = () => {
     if (!recurringOptions.endDate) return 'Please select an end date to see the preview';
     
@@ -99,6 +107,7 @@ function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: init
     return `This task will repeat ${interval}${weekDaysText} until ${endDate}`;
   };
 
+  // Modal render
   if (!isOpen) return null;
 
   return (

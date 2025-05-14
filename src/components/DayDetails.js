@@ -1,3 +1,7 @@
+// Tom coded this file
+// Day view component that displays and manages events for a specific day
+// Handles event creation, editing, deletion, and recurring event functionality
+
 import React, { useMemo, useState, useEffect } from 'react';
 import RecurringOptionsModal from './RecurringOptionsModal';
 
@@ -68,6 +72,7 @@ const generateRecurringDates = (startDate, recurringOptions) => {
 };
 
 function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
+  // State management for tasks and modals
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -100,6 +105,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
 
+  // Constants for categories, priorities, and date options
   const categories = useMemo(() => ['Work', 'Personal', 'School'], []);
   const priorities = ['Low', 'Medium', 'High', 'Critical'];
 
@@ -113,6 +119,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     return Array.from({ length: 20 }, (_, i) => currentYear - 10 + i);
   }, []);
 
+  // Recurring event handlers
   const handleRecurringChange = (checked) => {
     if (selectedTask) {
       setSelectedTask({ 
@@ -162,6 +169,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     setRecurringModalOpen(false);
   };
 
+  // Time validation and overlap checking
   const validateTimeInputs = (startTime, endTime) => {
     const errors = {};
     
@@ -238,6 +246,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     });
   };
 
+  // Task management functions
   const handleAddTask = async (allowOverlap = false) => {
     try {
       setIsLoading(true);
@@ -418,6 +427,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     setDeleteConfirmModalOpen(true);
   };
 
+  // Confirmation and undo functionality
   const confirmDelete = () => {
     if (!taskToDelete) return;
 
@@ -531,18 +541,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     setPendingTask(null);
   };
 
-  const dayTasks = useMemo(() => {
-    const filteredTasks = events.filter(task => task.date === getLocalDateString(selectedDate))
-      .sort((a, b) => new Date(`1970/01/01 ${a.startTime}`) - new Date(`1970/01/01 ${b.startTime}`));
-    return filteredTasks;
-  }, [events, selectedDate]);
-
-  useEffect(() => {
-    console.log('DayDetails selectedDate:', selectedDate, 'Normalized:', getLocalDateString(selectedDate));
-    console.log('DayDetails events:', events);
-    console.log('DayDetails dayTasks:', dayTasks);
-  }, [selectedDate, events, dayTasks]);
-
+  // UI helper functions
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'Low': return '#A8CCDC';
@@ -561,6 +560,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     }
   };
 
+  // Date navigation functions
   const handlePreviousDay = () => {
     const prevDate = new Date(selectedDate);
     prevDate.setDate(prevDate.getDate() - 1);
@@ -584,6 +584,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     }
   };
 
+  // Form handling functions
   const handleInputChange = (field, value) => {
     setNewTask(prev => ({ ...prev, [field]: value }));
   };
@@ -718,6 +719,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     }
   };
 
+  // Undo functionality
   const handleUndo = () => {
     if (!lastAction) return;
 
@@ -758,6 +760,18 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
       setShowUndoNotification(false);
     }
   };
+
+  const dayTasks = useMemo(() => {
+    const filteredTasks = events.filter(task => task.date === getLocalDateString(selectedDate))
+      .sort((a, b) => new Date(`1970/01/01 ${a.startTime}`) - new Date(`1970/01/01 ${b.startTime}`));
+    return filteredTasks;
+  }, [events, selectedDate]);
+
+  useEffect(() => {
+    console.log('DayDetails selectedDate:', selectedDate, 'Normalized:', getLocalDateString(selectedDate));
+    console.log('DayDetails events:', events);
+    console.log('DayDetails dayTasks:', dayTasks);
+  }, [selectedDate, events, dayTasks]);
 
   return (
     <div className="day-details">

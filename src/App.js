@@ -1,3 +1,7 @@
+// Tom coded this file
+// Main application component that handles routing and theme switching
+// Manages the overall state of the calendar application
+
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import DayDetails from './components/DayDetails';
@@ -5,6 +9,7 @@ import CalendarView from './components/CalendarView';
 import './App.css';
 
 function App() {
+  // State management for date, menu, theme, and events
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState('light');
@@ -16,10 +21,12 @@ function App() {
     return savedTasks ? JSON.parse(savedTasks) : [];
   });
 
+  // Theme toggle functionality
   const handleThemeToggle = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
 
+  // Update current time every second
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -27,10 +34,12 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // Save events to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(events));
   }, [events]);
 
+  // View switching logic
   const switchView = (newView) => {
     if (newView === 'day') {
       setSelectedDate(new Date()); // Reset to today when switching to Day View
@@ -39,6 +48,7 @@ function App() {
     setMenuOpen(false);
   };
 
+  // Main render with routing and theme support
   return (
     <BrowserRouter>
       <div className={`app ${theme}`}>

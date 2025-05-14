@@ -1,3 +1,7 @@
+// Tom coded this file
+// Calendar view component that displays events in a calendar format
+// Handles event creation, editing, and deletion with recurring event support
+
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -48,6 +52,7 @@ const generateRecurringDates = (startDate, recurringOptions) => {
 };
 
 function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
+  // State management for calendar events and modals
   const calendarRef = useRef(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -79,6 +84,7 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
   const [showUndo, setShowUndo] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Initialize calendar with selected date
   useEffect(() => {
     if (calendarRef.current) {
       const calendarApi = calendarRef.current.getApi();
@@ -91,6 +97,7 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
     console.log('CalendarView events:', events);
   }, [events]);
 
+  // Event handlers for calendar interactions
   const handleDateClick = (info) => {
     const startTime = info.date.toTimeString().slice(0, 5); // e.g., "13:00"
     const [hours, minutes] = startTime.split(':').map(Number);
@@ -134,6 +141,7 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
     );
   };
 
+  // Recurring event handlers
   const handleRecurringChange = (checked) => {
     if (selectedEvent) {
       setSelectedEvent({ ...selectedEvent, recurring: checked });
@@ -165,6 +173,7 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
     setRecurringModalOpen(false);
   };
 
+  // Event creation and management
   const handleCreateEvent = () => {
     // Validate required fields
     if (!newEvent.title.trim()) {
@@ -287,6 +296,7 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
     }
   };
 
+  // Confirmation and undo functionality
   const confirmDelete = () => {
     if (!taskToDelete) return;
 
@@ -399,6 +409,15 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
     }
   };
 
+  // Event styling
+  const eventClassNames = (eventInfo) => {
+    const priority = eventInfo.event.extendedProps.priority || 'Medium';
+    return [`priority-${priority.toLowerCase()}`];
+  };
+
+  const categories = ['Work', 'Personal', 'School'];
+  const priorities = ['Low', 'Medium', 'High', 'Critical'];
+
   const calendarEvents = useMemo(() => {
     return events.map(event => {
       const normalizedEvent = {
@@ -422,14 +441,6 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
       };
     });
   }, [events, selectedDate]);
-
-  const categories = ['Work', 'Personal', 'School'];
-  const priorities = ['Low', 'Medium', 'High', 'Critical'];
-
-  const eventClassNames = (eventInfo) => {
-    const priority = eventInfo.event.extendedProps.priority || 'Medium';
-    return [`priority-${priority.toLowerCase()}`];
-  };
 
   return (
     <div className="calendar-view">
