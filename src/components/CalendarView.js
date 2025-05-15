@@ -21,17 +21,31 @@ const getLocalDateString = (date) => {
 // Utility to generate recurring event dates
 const generateRecurringDates = (startDate, recurringOptions) => {
   const dates = [];
+  // Create dates in local timezone
   const start = new Date(startDate);
   const end = new Date(recurringOptions.endDate);
   let currentDate = new Date(start);
 
-  while (currentDate <= end) {
+  // Store original time
+  const originalHours = start.getHours();
+  const originalMinutes = start.getMinutes();
+
+  // Set time to midnight for date comparison
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  currentDate.setHours(0, 0, 0, 0);
+
+  while (currentDate.getTime() <= end.getTime()) {
     if (recurringOptions.frequency === 'daily') {
-      dates.push(new Date(currentDate));
+      const newDate = new Date(currentDate);
+      newDate.setHours(originalHours, originalMinutes, 0, 0);
+      dates.push(newDate);
       currentDate.setDate(currentDate.getDate() + recurringOptions.interval);
     } else if (recurringOptions.frequency === 'weekly') {
       if (recurringOptions.weekDays.includes(currentDate.getDay())) {
-        dates.push(new Date(currentDate));
+        const newDate = new Date(currentDate);
+        newDate.setHours(originalHours, originalMinutes, 0, 0);
+        dates.push(newDate);
       }
       currentDate.setDate(currentDate.getDate() + 1);
       
@@ -40,10 +54,14 @@ const generateRecurringDates = (startDate, recurringOptions) => {
         currentDate.setDate(currentDate.getDate() + (recurringOptions.interval - 1) * 7);
       }
     } else if (recurringOptions.frequency === 'monthly') {
-      dates.push(new Date(currentDate));
+      const newDate = new Date(currentDate);
+      newDate.setHours(originalHours, originalMinutes, 0, 0);
+      dates.push(newDate);
       currentDate.setMonth(currentDate.getMonth() + recurringOptions.interval);
     } else if (recurringOptions.frequency === 'yearly') {
-      dates.push(new Date(currentDate));
+      const newDate = new Date(currentDate);
+      newDate.setHours(originalHours, originalMinutes, 0, 0);
+      dates.push(newDate);
       currentDate.setFullYear(currentDate.getFullYear() + recurringOptions.interval);
     }
   }
@@ -275,17 +293,38 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
         metadata: { ...selectedEvent.metadata, lastUpdated: new Date().toISOString() },
       };
 
-      if (updatedEvent.recurring) {
-        setConfirmMessage('This is a recurring event. Would you like to edit all instances or just this one?');
-        setConfirmAction('edit');
-        setPendingEvent(updatedEvent);
-        setConfirmModalOpen(true);
+      if (updatedEvent.recurring && updatedEvent.editAction) {
+        if (updatedEvent.editAction === 'all' && updatedEvent.recurringOptions) {
+          const recurringDates = generateRecurringDates(
+            new Date(`${updatedEvent.date}T${updatedEvent.startTime}`),
+            updatedEvent.recurringOptions
+          );
+
+          const eventsToUpdate = recurringDates.map((date, index) => ({
+            ...updatedEvent,
+            taskId: `${updatedEvent.taskId.split('-')[0]}-${index}`,
+            date: getLocalDateString(date),
+            startTime: date.toTimeString().slice(0, 5),
+            endTime: new Date(date.getTime() + (new Date(`1970/01/01 ${updatedEvent.endTime}`).getTime() - new Date(`1970/01/01 ${updatedEvent.startTime}`).getTime())).toTimeString().slice(0, 5),
+          }));
+          
+          setEvents(prevEvents => {
+            const baseTaskId = updatedEvent.taskId.split('-')[0];
+            return prevEvents
+              .filter(ev => !ev.taskId.startsWith(baseTaskId))
+              .concat(eventsToUpdate);
+          });
+        } else if (updatedEvent.editAction === 'single') {
+          setEvents(prevEvents =>
+            prevEvents.map(ev => ev.taskId === updatedEvent.taskId ? updatedEvent : ev)
+          );
+        }
       } else {
         setEvents(prevEvents =>
           prevEvents.map(ev => (ev.taskId === updatedEvent.taskId ? updatedEvent : ev))
         );
-        setEditModalOpen(false);
       }
+      setEditModalOpen(false);
     }
   };
 
@@ -340,29 +379,13 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
     }
 
     if (confirmAction === 'edit' && pendingEvent) {
-      let eventsToUpdate = [pendingEvent];
-      if (action === 'all' && pendingEvent.recurring && pendingEvent.recurringOptions) {
-        const recurringDates = generateRecurringDates(
-          new Date(`${pendingEvent.date}T${pendingEvent.startTime}`),
-          pendingEvent.recurringOptions
-        );
-
-        eventsToUpdate = recurringDates.map((date, index) => ({
-          ...pendingEvent,
-          taskId: `${pendingEvent.taskId}-${index}`,
-          date: getLocalDateString(date),
-          startTime: date.toTimeString().slice(0, 5),
-          endTime: new Date(date.getTime() + (new Date(`1970/01/01 ${pendingEvent.endTime}`).getTime() - new Date(`1970/01/01 ${pendingEvent.startTime}`).getTime())).toTimeString().slice(0, 5),
-        }));
-      }
-      
-      setEvents(prevEvents => {
-        const baseTaskId = pendingEvent.taskId.split('-')[0];
-        return prevEvents
-          .filter(ev => action === 'single' ? ev.taskId !== pendingEvent.taskId : !ev.taskId.startsWith(baseTaskId))
-          .concat(eventsToUpdate);
+      // Store the action type in the pendingEvent for later use
+      setPendingEvent({
+        ...pendingEvent,
+        editAction: action // 'all' or 'single'
       });
-      
+      setSelectedEvent(pendingEvent);
+      setEditModalOpen(true);
     } else if (confirmAction === 'delete' && pendingEvent) {
       if (action === 'all') {
         const baseTaskId = pendingEvent.taskId.split('-')[0];
@@ -373,8 +396,6 @@ function CalendarView({ selectedDate, setSelectedDate, events, setEvents }) {
     }
     
     setConfirmModalOpen(false);
-    setPendingEvent(null);
-    setEditModalOpen(false);
   };
 
   const handleUndo = () => {

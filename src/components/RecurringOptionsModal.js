@@ -98,13 +98,16 @@ function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: init
       ? ` on ${sortedWeekDays.map(day => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day]).join(', ')}`
       : '';
     
-    const endDate = new Date(recurringOptions.endDate).toLocaleDateString('en-US', { 
+    // Parse the date components directly to avoid timezone issues
+    const [year, month, day] = recurringOptions.endDate.split('-').map(Number);
+    const endDate = new Date(year, month - 1, day); // month is 0-based in JavaScript Date
+    const formattedEndDate = endDate.toLocaleDateString('en-US', { 
       month: 'long',
       day: 'numeric',
       year: 'numeric'
     });
     
-    return `This task will repeat ${interval}${weekDaysText} until ${endDate}`;
+    return `This task will repeat ${interval}${weekDaysText} until ${formattedEndDate}`;
   };
 
   // Modal render

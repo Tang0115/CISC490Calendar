@@ -15,56 +15,48 @@ const getLocalDateString = (date) => {
 
 const generateRecurringDates = (startDate, recurringOptions) => {
   const dates = [];
+  // Create dates in local timezone
   const start = new Date(startDate);
   const end = new Date(recurringOptions.endDate);
   let currentDate = new Date(start);
 
-  // Validate dates
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    console.error('Invalid start or end date');
-    return dates;
-  }
+  // Store original time
+  const originalHours = start.getHours();
+  const originalMinutes = start.getMinutes();
 
-  // Ensure interval is valid
-  const interval = Math.max(1, parseInt(recurringOptions.interval) || 1);
+  // Set time to midnight for date comparison
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  currentDate.setHours(0, 0, 0, 0);
 
-  while (currentDate <= end) {
+  while (currentDate.getTime() <= end.getTime()) {
     if (recurringOptions.frequency === 'daily') {
-      dates.push(new Date(currentDate));
-      currentDate.setDate(currentDate.getDate() + interval);
+      const newDate = new Date(currentDate);
+      newDate.setHours(originalHours, originalMinutes, 0, 0);
+      dates.push(newDate);
+      currentDate.setDate(currentDate.getDate() + recurringOptions.interval);
     } else if (recurringOptions.frequency === 'weekly') {
-      // Ensure weekDays is an array of valid day numbers (0-6)
-      const validWeekDays = recurringOptions.weekDays
-        .map(day => parseInt(day))
-        .filter(day => !isNaN(day) && day >= 0 && day <= 6);
-
-      if (validWeekDays.includes(currentDate.getDay())) {
-        dates.push(new Date(currentDate));
+      if (recurringOptions.weekDays.includes(currentDate.getDay())) {
+        const newDate = new Date(currentDate);
+        newDate.setHours(originalHours, originalMinutes, 0, 0);
+        dates.push(newDate);
       }
       currentDate.setDate(currentDate.getDate() + 1);
       
       // If we've completed a week and have an interval > 1, skip ahead
-      if (currentDate.getDay() === 0 && interval > 1) {
-        currentDate.setDate(currentDate.getDate() + (interval - 1) * 7);
+      if (currentDate.getDay() === 0 && recurringOptions.interval > 1) {
+        currentDate.setDate(currentDate.getDate() + (recurringOptions.interval - 1) * 7);
       }
     } else if (recurringOptions.frequency === 'monthly') {
-      dates.push(new Date(currentDate));
-      const oldMonth = currentDate.getMonth();
-      currentDate.setMonth(currentDate.getMonth() + interval);
-      
-      // Handle month skipping (e.g., Jan 31 to Feb 31 should go to Feb 28)
-      if (currentDate.getMonth() > (oldMonth + interval) % 12) {
-        currentDate.setDate(0); // Set to last day of previous month
-      }
+      const newDate = new Date(currentDate);
+      newDate.setHours(originalHours, originalMinutes, 0, 0);
+      dates.push(newDate);
+      currentDate.setMonth(currentDate.getMonth() + recurringOptions.interval);
     } else if (recurringOptions.frequency === 'yearly') {
-      dates.push(new Date(currentDate));
-      currentDate.setFullYear(currentDate.getFullYear() + interval);
-    }
-
-    // Safety check to prevent infinite loops
-    if (dates.length > 1000) {
-      console.warn('Too many recurring dates generated, truncating to 1000');
-      break;
+      const newDate = new Date(currentDate);
+      newDate.setHours(originalHours, originalMinutes, 0, 0);
+      dates.push(newDate);
+      currentDate.setFullYear(currentDate.getFullYear() + recurringOptions.interval);
     }
   }
 
@@ -517,28 +509,19 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
 
     if (confirmAction === 'edit') {
       if (pendingTask) {
-        if (action === 'all') {
-          setSelectedTask(pendingTask);
-          setEditModalOpen(true);
-        } else if (action === 'single') {
-          setSelectedTask(pendingTask);
-          setEditModalOpen(true);
-        }
+        // Store the action type in the pendingTask for later use
+        setPendingTask({
+          ...pendingTask,
+          editAction: action // 'all' or 'single'
+        });
+        setSelectedTask(pendingTask);
+        setEditModalOpen(true);
       }
     } else if (confirmAction === 'delete') {
-      if (pendingTask) {
-        if (action === 'all' && pendingTask.recurringOptions) {
-          // Delete all instances of the recurring event by matching the base taskId
-          const baseTaskId = pendingTask.taskId.split('-')[0];
-          setEvents(prevEvents => prevEvents.filter(task => !task.taskId.startsWith(baseTaskId)));
-        } else if (action === 'single') {
-          // Delete only this instance
-          setEvents(prevEvents => prevEvents.filter(task => task.taskId !== pendingTask.taskId));
-        }
-      }
+      handleDeleteRecurring(action);
     }
+    
     setConfirmModalOpen(false);
-    setPendingTask(null);
   };
 
   // UI helper functions
@@ -625,60 +608,72 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     }
 
     try {
-      let tasksToUpdate = [];
-      const baseTaskId = selectedTask.taskId.split('-')[0];
-      
-      if (selectedTask.recurring && selectedTask.recurringOptions) {
-        // Generate new recurring dates
-        const recurringDates = generateRecurringDates(
-          new Date(`${selectedTask.date}T${selectedTask.startTime}`),
-          selectedTask.recurringOptions
-        );
+      if (selectedTask.recurring && selectedTask.editAction) {
+        if (selectedTask.editAction === 'all' && selectedTask.recurringOptions) {
+          // Generate new recurring dates
+          const recurringDates = generateRecurringDates(
+            new Date(`${selectedTask.date}T${selectedTask.startTime}`),
+            selectedTask.recurringOptions
+          );
 
-        if (recurringDates.length === 0) {
-          setErrors({ recurring: 'No valid recurring dates were generated' });
-          return;
+          if (recurringDates.length === 0) {
+            setErrors({ recurring: 'No valid recurring dates were generated' });
+            return;
+          }
+
+          // Create updated tasks for all recurring instances
+          const tasksToUpdate = recurringDates.map((date, index) => {
+            const startTime = date.toTimeString().slice(0, 5);
+            const durationMs = new Date(`1970/01/01 ${selectedTask.endTime}`).getTime() - 
+                             new Date(`1970/01/01 ${selectedTask.startTime}`).getTime();
+            const endTime = new Date(date.getTime() + durationMs).toTimeString().slice(0, 5);
+
+            return {
+              ...selectedTask,
+              taskId: `${selectedTask.taskId.split('-')[0]}-${index}`,
+              date: getLocalDateString(date),
+              startTime,
+              endTime,
+              metadata: {
+                ...selectedTask.metadata,
+                lastUpdated: new Date().toISOString(),
+                recurringGroupId: selectedTask.taskId.split('-')[0]
+              }
+            };
+          });
+
+          // Remove all existing instances and add new ones
+          const updatedEvents = events.filter(event => 
+            !event.taskId.startsWith(selectedTask.taskId.split('-')[0])
+          ).concat(tasksToUpdate);
+
+          // Save to localStorage
+          localStorage.setItem('tasks', JSON.stringify(updatedEvents));
+          
+          // Update state
+          setEvents(updatedEvents);
+          setLastAction({
+            type: 'edit',
+            tasks: tasksToUpdate,
+            previousEvents: [...events]
+          });
+        } else if (selectedTask.editAction === 'single') {
+          // For single instance, just update the specific task
+          const updatedEvents = events.map(event => 
+            event.taskId === selectedTask.taskId ? selectedTask : event
+          );
+
+          // Save to localStorage
+          localStorage.setItem('tasks', JSON.stringify(updatedEvents));
+          
+          // Update state
+          setEvents(updatedEvents);
+          setLastAction({
+            type: 'edit',
+            tasks: [selectedTask],
+            previousEvents: [...events]
+          });
         }
-
-        // Create updated tasks for all recurring instances
-        tasksToUpdate = recurringDates.map((date, index) => {
-          const startTime = date.toTimeString().slice(0, 5);
-          const durationMs = new Date(`1970/01/01 ${selectedTask.endTime}`).getTime() - 
-                           new Date(`1970/01/01 ${selectedTask.startTime}`).getTime();
-          const endTime = new Date(date.getTime() + durationMs).toTimeString().slice(0, 5);
-
-          return {
-            ...selectedTask,
-            taskId: `${baseTaskId}-${index}`,
-            date: getLocalDateString(date),
-            startTime,
-            endTime,
-            metadata: {
-              ...selectedTask.metadata,
-              lastUpdated: new Date().toISOString(),
-              recurringGroupId: baseTaskId
-            }
-          };
-        });
-
-        // Remove all existing instances of this recurring event
-        const updatedEvents = events.filter(event => 
-          !event.taskId.startsWith(baseTaskId)
-        );
-
-        // Add all new recurring instances
-        updatedEvents.push(...tasksToUpdate);
-
-        // Save to localStorage
-        localStorage.setItem('tasks', JSON.stringify(updatedEvents));
-        
-        // Update state
-        setEvents(updatedEvents);
-        setLastAction({
-          type: 'edit',
-          tasks: tasksToUpdate,
-          previousEvents: [...events]
-        });
       } else {
         // Single task update
         const updatedTask = {
