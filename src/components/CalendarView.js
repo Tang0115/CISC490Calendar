@@ -12,57 +12,58 @@ import RecurringOptionsModal from './RecurringOptionsModal';
 // Utility to get local YYYY-MM-DD
 const getLocalDateString = (date) => {
   const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0'); // Months are 0-based
-  const day = String(d.getDate()).padStart(2, '0');
+  // Use UTC methods to ensure consistency across environments
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
 // Utility to generate recurring event dates
 const generateRecurringDates = (startDate, recurringOptions) => {
   const dates = [];
-  // Create dates in local timezone
+  // Create dates in UTC
   const start = new Date(startDate);
   const end = new Date(recurringOptions.endDate);
   let currentDate = new Date(start);
 
-  // Store original time
-  const originalHours = start.getHours();
-  const originalMinutes = start.getMinutes();
+  // Store original time in UTC
+  const originalHours = start.getUTCHours();
+  const originalMinutes = start.getUTCMinutes();
 
-  // Set time to midnight for date comparison
-  start.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-  currentDate.setHours(0, 0, 0, 0);
+  // Set time to midnight UTC for date comparison
+  start.setUTCHours(0, 0, 0, 0);
+  end.setUTCHours(0, 0, 0, 0);
+  currentDate.setUTCHours(0, 0, 0, 0);
 
   while (currentDate.getTime() <= end.getTime()) {
     if (recurringOptions.frequency === 'daily') {
       const newDate = new Date(currentDate);
-      newDate.setHours(originalHours, originalMinutes, 0, 0);
+      newDate.setUTCHours(originalHours, originalMinutes, 0, 0);
       dates.push(newDate);
-      currentDate.setDate(currentDate.getDate() + recurringOptions.interval);
+      currentDate.setUTCDate(currentDate.getUTCDate() + recurringOptions.interval);
     } else if (recurringOptions.frequency === 'weekly') {
-      if (recurringOptions.weekDays.includes(currentDate.getDay())) {
+      if (recurringOptions.weekDays.includes(currentDate.getUTCDay())) {
         const newDate = new Date(currentDate);
-        newDate.setHours(originalHours, originalMinutes, 0, 0);
+        newDate.setUTCHours(originalHours, originalMinutes, 0, 0);
         dates.push(newDate);
       }
-      currentDate.setDate(currentDate.getDate() + 1);
+      currentDate.setUTCDate(currentDate.getUTCDate() + 1);
       
       // If we've completed a week and have an interval > 1, skip ahead
-      if (currentDate.getDay() === 0 && recurringOptions.interval > 1) {
-        currentDate.setDate(currentDate.getDate() + (recurringOptions.interval - 1) * 7);
+      if (currentDate.getUTCDay() === 0 && recurringOptions.interval > 1) {
+        currentDate.setUTCDate(currentDate.getUTCDate() + (recurringOptions.interval - 1) * 7);
       }
     } else if (recurringOptions.frequency === 'monthly') {
       const newDate = new Date(currentDate);
-      newDate.setHours(originalHours, originalMinutes, 0, 0);
+      newDate.setUTCHours(originalHours, originalMinutes, 0, 0);
       dates.push(newDate);
-      currentDate.setMonth(currentDate.getMonth() + recurringOptions.interval);
+      currentDate.setUTCMonth(currentDate.getUTCMonth() + recurringOptions.interval);
     } else if (recurringOptions.frequency === 'yearly') {
       const newDate = new Date(currentDate);
-      newDate.setHours(originalHours, originalMinutes, 0, 0);
+      newDate.setUTCHours(originalHours, originalMinutes, 0, 0);
       dates.push(newDate);
-      currentDate.setFullYear(currentDate.getFullYear() + recurringOptions.interval);
+      currentDate.setUTCFullYear(currentDate.getUTCFullYear() + recurringOptions.interval);
     }
   }
 
