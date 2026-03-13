@@ -12,10 +12,10 @@ import RecurringOptionsModal from './RecurringOptionsModal';
 // Utility to get local YYYY-MM-DD
 const getLocalDateString = (date) => {
   const d = new Date(date);
-  // Use UTC methods to ensure consistency across environments
-  const year = d.getUTCFullYear();
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
+  // Use local methods to ensure we get the date in the user's timezone
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 

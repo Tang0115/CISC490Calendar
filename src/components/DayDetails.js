@@ -2,15 +2,16 @@
 // Day view component that displays and manages events for a specific day
 // Handles event creation, editing, deletion, and recurring event functionality
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import gsap from 'gsap';
 import RecurringOptionsModal from './RecurringOptionsModal';
 
 const getLocalDateString = (date) => {
   const d = new Date(date);
-  // Use UTC methods to ensure consistency across environments
-  const year = d.getUTCFullYear();
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
+  // Use local methods to ensure we get the date in the user's timezone
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
@@ -97,6 +98,8 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
+  
+  const timelineRef = useRef(null);
 
   // Constants for categories, priorities, and date options
   const categories = useMemo(() => ['Work', 'Personal', 'School'], []);
@@ -767,6 +770,13 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
     console.log('DayDetails selectedDate:', selectedDate, 'Normalized:', getLocalDateString(selectedDate));
     console.log('DayDetails events:', events);
     console.log('DayDetails dayTasks:', dayTasks);
+
+    if (timelineRef.current && dayTasks.length > 0) {
+      gsap.fromTo(timelineRef.current.children, 
+        { autoAlpha: 0, x: -20 },
+        { autoAlpha: 1, x: 0, duration: 0.4, stagger: 0.1, ease: 'power2.out' }
+      );
+    }
   }, [selectedDate, events, dayTasks]);
 
   return (
@@ -845,7 +855,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
       <div className="details-content">
         <div className="timeline-section">
           <h3>Today's Timeline</h3>
-          <div className="timeline">
+          <div className="timeline" ref={timelineRef}>
             {dayTasks.map((task) => (
               <div 
                 key={task.taskId} 
@@ -979,7 +989,7 @@ function DayDetails({ selectedDate, setSelectedDate, events, setEvents }) {
                 />
               </div>
               <div className="input-row">
-                <button onClick={() => handleAddTask()}>Add</button>
+                <button className="add-task-button" onClick={() => handleAddTask()}>Add Task</button>
               </div>
             </div>
           </div>

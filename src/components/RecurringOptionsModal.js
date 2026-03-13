@@ -115,13 +115,13 @@ function RecurringOptionsModal({ isOpen, onClose, onSave, recurringOptions: init
 
   return (
     <div 
-      className="recurring-modal-overlay"
+      className="modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="recurring-modal-title"
       ref={modalRef}
     >
-      <div className="recurring-modal-content">
+      <div className="modal-content">
         <h2 id="recurring-modal-title">Recurring Event Options</h2>
         <div className="input-row">
           <label htmlFor="frequency-select">Frequency:</label>

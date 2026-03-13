@@ -2,8 +2,9 @@
 // Main application component that handles routing and theme switching
 // Manages the overall state of the calendar application
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import gsap from 'gsap';
 import DayDetails from './components/DayDetails';
 import CalendarView from './components/CalendarView';
 import './App.css';
@@ -15,11 +16,22 @@ function App() {
   const [theme, setTheme] = useState('light');
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   const [view, setView] = useState('day');
+  const appRef = useRef(null);
 
   const [events, setEvents] = useState(() => {
     const savedTasks = localStorage.getItem('tasks');
     return savedTasks ? JSON.parse(savedTasks) : [];
   });
+
+  // Initial load animation
+  useEffect(() => {
+    if (appRef.current) {
+      gsap.fromTo(appRef.current, 
+        { autoAlpha: 0, y: 20 }, 
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power3.out' }
+      );
+    }
+  }, []);
 
   // Theme toggle functionality
   const handleThemeToggle = () => {
@@ -51,7 +63,7 @@ function App() {
   // Main render with routing and theme support
   return (
     <BrowserRouter>
-      <div className={`app ${theme}`}>
+      <div className={`app ${theme}`} ref={appRef}>
         <header>
           <div className="header-left">
             <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>
